@@ -6,24 +6,8 @@ from queue import Queue, Empty
 import signal
 import sys
 import cv2
-
-
-BITS_PER_COLOR = 2
-PIXEL_SIZE_BITS = 3
-
-PIXEL_SIZE = 1<<PIXEL_SIZE_BITS
-VIDEO_HEIGHT = 720
-VIDEO_WIDTH = 1280
-FPS = 2
-BOTTOM_BUFFER = 0  # set to 22 if want to avoid errors when Zoom HUD shows up
-AVIDEO_HEIGHT = VIDEO_HEIGHT-(2+BOTTOM_BUFFER)*PIXEL_SIZE
-AVIDEO_WIDTH = VIDEO_WIDTH-2*PIXEL_SIZE
-PWIDTH = AVIDEO_WIDTH//PIXEL_SIZE
-PHEIGHT = AVIDEO_HEIGHT//PIXEL_SIZE
-NPIXELS = PWIDTH*PHEIGHT
-BITS_PER_FRAME = NPIXELS*3*BITS_PER_COLOR
-MAX_SIZE = BITS_PER_FRAME//8
-COLORWIDTH = 256 // (1<<BITS_PER_COLOR)
+from constants import *
+from utils import bits_to_blocks, blocks_to_pixels, pixels_to_frame
 
 frames_sent = 0
 frames_generated = 0
@@ -34,39 +18,6 @@ STARTFRAME = np.ones((AVIDEO_HEIGHT, AVIDEO_WIDTH, 3), np.uint8)*240
 BORDER = np.zeros((PHEIGHT+2+BOTTOM_BUFFER, PWIDTH+2, 3), dtype=np.uint8)
 BORDER[:, :] = (255, 255, 255)
 BORDER = np.repeat(np.repeat(BORDER, PIXEL_SIZE, axis=0), PIXEL_SIZE, axis=1)
-
-
-
-q = Queue()
-exit_event = threading.Event()
-def bits_to_blocks(bits):
-    """
-    (# of bits) --> ( {0, 64, 128, 192} values )
-    0, 0 --> 0
-    0, 1 --> 64
-    1, 0 --> 128
-    1, 1 --> 192
-    """
-    
-    split = bits.reshape(-1, BITS_PER_COLOR)
-    return np.packbits(split, axis=-1).flatten()
-
-
-def blocks_to_pixels(arr):
-    """
-    Groups the values into RGB blocks, adds 32 for more accurate decoding
-    """
-    return arr.reshape(-1, 3) + (1<<(8-BITS_PER_COLOR-1))
-
-
-def pixels_to_frame(pixels):  
-    """
-    (# of pixel values , 3) --> (frame_height, frame_width, 3)
-    expands each pixel to a PIXEL_SIZE * PIXEL_SIZE block
-    """
-    pixels2 = pixels.reshape(PHEIGHT, PWIDTH, 3)
-    ret = np.repeat(np.repeat(pixels2, PIXEL_SIZE, axis=0), PIXEL_SIZE, axis=1)
-    return ret
 
 def wrap(frame):  # Adds white border around frame for image detection
     tmp = BORDER[:]
@@ -96,6 +47,9 @@ def process_bits(bits, q): # processes the bits into frames and adds them to a s
         #    print(f"{frames_generated} frames written.")
 
     
+
+q = Queue(maxsize=1000)
+exit_event = threading.Event()
 
 def output_to_stream():
     global frames_sent
@@ -144,6 +98,7 @@ def get_data(filename):
             
 
 def signal_handler(signum, frame):
+    cv2.destroyAllWindows()
     exit_event.set()
 
 FILENAME = -1

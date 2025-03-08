@@ -1,0 +1,6 @@
+mss==10.0.0
+numpy==2.2.3
+opencv-python==4.11.0.86
+PyGetWindow==0.0.9
+PyRect==0.2.0
+pyvirtualcam==0.12.1

@@ -6,79 +6,16 @@ import signal
 import threading
 import time
 from queue import Queue, Empty
+from constants import *
+from utils import pixels_to_bits, frame_to_pixels, detectframe, bits_to_bytes
 
 q = Queue()
+netq = Queue()
 exit_event = threading.Event()
-
-BITS_PER_COLOR = 2
-PIXEL_SIZE_BITS = 3
-
-PIXEL_SIZE = 1<<PIXEL_SIZE_BITS
-VIDEO_HEIGHT = 720
-VIDEO_WIDTH = 1280
-BOTTOM_BUFFER = 0
-AVIDEO_HEIGHT = VIDEO_HEIGHT-(2+BOTTOM_BUFFER)*PIXEL_SIZE
-AVIDEO_WIDTH = VIDEO_WIDTH-2*PIXEL_SIZE
-PWIDTH = AVIDEO_WIDTH//PIXEL_SIZE
-PHEIGHT = AVIDEO_HEIGHT//PIXEL_SIZE
-NPIXELS = PWIDTH*PHEIGHT
-BITS_PER_FRAME = NPIXELS*3*BITS_PER_COLOR
-MAX_SIZE = BITS_PER_FRAME // 8
-COLORWIDTH = 256 // (1<<BITS_PER_COLOR)
 
 frames_received = 0
 frames_processed = 0
     
-def pixels_to_bits(blocks):
-    """
-    Converts list of pixel RGB values back to list of bits
-    """
-    blocks = blocks.flatten()
-    blocks = blocks.astype('uint8')[:, np.newaxis]
-
-    nums = np.unpackbits(blocks, axis=1, count=BITS_PER_COLOR)
-    #print(blocks[0], nums[0])
-    return nums.flatten()
-
-
-
-def frame_to_pixels(frame):
-    """
-    Averages the middle 4 pixels of each pixel block, following CovertCast
-    Returns a list of pixel RGB values
-    """
-    Z = frame.reshape(PHEIGHT,PIXEL_SIZE,PWIDTH,PIXEL_SIZE,3)
-
-    ZZ = Z[:, PIXEL_SIZE//2-2:PIXEL_SIZE//2+2, :, PIXEL_SIZE//2-2:PIXEL_SIZE//2+2, :].mean(axis=(1,3)) # Z.mean(axis=(1,3)) #
-    
-    return ZZ.reshape(-1, 3)
- 
-
-def detectframe(frame):
-    """Detects white border of frame, then crops and resizes frame"""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    NROWS = gray.shape[0]
-    NCOLS = frame.shape[1]
-
-    #apply threshold
-    thresh = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)[1]
-    cols = thresh[NROWS//2, :]
-    rows = thresh[:, NCOLS//2]
-    
-    L, R = cols[:].argmax(), NCOLS - cols[::-1].argmax()
-    U, D = rows[:].argmax(), NROWS - rows[::-1].argmax()
-    
-    cropped = frame[U:D, L:R]
-    resized = cv2.resize(cropped, (VIDEO_WIDTH, VIDEO_HEIGHT-BOTTOM_BUFFER*PIXEL_SIZE))
-    unwrapped = resized[PIXEL_SIZE:-PIXEL_SIZE, PIXEL_SIZE:-PIXEL_SIZE]
-    return unwrapped
-
-def bits_to_bytes(bits):
-    """Seems to work"""
-    bits = bits[:len(bits)//8*8]
-    bytesstr = bits.reshape(-1, 8)
-    return bytes(np.packbits(bytesstr, axis=-1).flatten())
-
 
 def process_frames():
     global frames_processed
@@ -151,6 +88,7 @@ def screenshot():
                 
 def signal_handler(signum, frame):
     print("Exiting...")
+    cv2.destroyAllWindows()
     exit_event.set()
 
 
