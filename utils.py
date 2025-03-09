@@ -47,7 +47,7 @@ def detectframe(frame):
     unwrapped = resized[PIXEL_SIZE:-PIXEL_SIZE, PIXEL_SIZE:-PIXEL_SIZE]
     return unwrapped
 
-def bits_to_bytes(bits):
+def bits_to_bytes(bits: np.array):
     """Seems to work"""
     bits = bits[:len(bits)//8*8]
     bytesstr = bits.reshape(-1, 8)
@@ -81,4 +81,5 @@ def pixels_to_frame(pixels):
     pixels2 = pixels.reshape(PHEIGHT, PWIDTH, 3)
     ret = np.repeat(np.repeat(pixels2, PIXEL_SIZE, axis=0), PIXEL_SIZE, axis=1)
     return ret
+
 
